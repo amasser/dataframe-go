@@ -12,12 +12,12 @@ import (
 type DataType int
 
 const (
-	// TrainData type specifies selection of trainData from sesModel
-	TrainData DataType = 0
-	// TestData type specifies selection of testData from sesModel
-	TestData DataType = 1
 	// MainData type specifies selection of the original data from sesModel
-	MainData DataType = 2
+	MainData DataType = 0
+	// TrainData type specifies selection of trainData from sesModel
+	TrainData DataType = 1
+	// TestData type specifies selection of testData from sesModel
+	TestData DataType = 2
 )
 
 // FitOptions is used to set necessary parameters
