@@ -3,7 +3,6 @@ package forecast
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	dataframe "github.com/rocketlaunchr/dataframe-go"
 )
@@ -51,20 +50,6 @@ func initialSeasonalComponents(y []float64, period int) []float64 {
 	}
 
 	return seasonalIndices
-}
-
-// getDateTime function fetches time.Time data from dataframe in string format
-// but converts and return string as time.Time
-func getDateTime(data dataframe.Series, row int) (*time.Time, error) {
-	var dateTimeValue string
-
-	dateTimeValue = data.ValueString(row, dataframe.DontLock)
-	dateTime, err := time.Parse(timeFormat, dateTimeValue)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dateTime, nil
 }
 
 func interpolateMissingData(s dataframe.Series, row, column int) (interface{}, error) {
