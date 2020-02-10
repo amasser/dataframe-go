@@ -27,10 +27,7 @@ type HwModel struct {
 	alpha                float64
 	beta                 float64
 	gamma                float64
-	mae                  float64
-	sse                  float64
-	rmse                 float64
-	mape                 float64
+	errorM               *ErrorMeasurement
 }
 
 // HoltWinters Function receives a series data of type dataframe.Seriesfloat64
@@ -51,10 +48,7 @@ func HoltWinters(s *dataframe.SeriesFloat64) *HwModel {
 		alpha:                0.0,
 		beta:                 0.0,
 		gamma:                0.0,
-		mae:                  0.0,
-		sse:                  0.0,
-		rmse:                 0.0,
-		mape:                 0.0,
+		errorM:               &ErrorMeasurement{},
 	}
 
 	model.data = s
@@ -64,13 +58,27 @@ func HoltWinters(s *dataframe.SeriesFloat64) *HwModel {
 // Fit Method performs the splitting and trainging of the HwModel based on the Tripple Exponential Smoothing algorithm.
 // It returns a trained HwModel ready to carry out future predictions.
 // The arguments α, beta nd gamma must be between [0,1]. Recent values receive more weight when α is closer to 1.
-func (hm *HwModel) Fit(ctx context.Context, α, β, γ float64, period int, r ...dataframe.Range) (*HwModel, error) {
+func (hm *HwModel) Fit(ctx context.Context, o FitOptions) (*HwModel, error) {
 
-	if len(r) == 0 {
-		r = append(r, dataframe.Range{})
+	var (
+		α, β, γ float64
+		period  int
+		r       *dataframe.Range
+		errTyp  ErrorType
+	)
+
+	α = o.Alpha
+	β = o.Beta
+	γ = o.Gamma
+	period = o.Period
+
+	if o.TrainDataRange != nil {
+		r = o.TrainDataRange
 	}
 
-	start, end, err := r[0].Limits(len(hm.data.Values))
+	errTyp = o.ErrMtype
+
+	start, end, err := r.Limits(len(hm.data.Values))
 	if err != nil {
 		return nil, err
 	}
@@ -179,30 +187,36 @@ func (hm *HwModel) Fit(ctx context.Context, α, β, γ float64, period int, r ..
 	// NOw to calculate the Errors
 	opts := &ErrorOptions{}
 
-	mae, _, err := MeanAbsoluteError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
+	var val float64
+
+	if errTyp == MAE {
+		val, _, err = MeanAbsoluteError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == SSE {
+		val, _, err = SumOfSquaredErrors(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == RMSE {
+		val, _, err = RootMeanSquaredError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == MAPE {
+		val, _, err = MeanAbsolutePercentageError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("Unknown error type")
 	}
 
-	sse, _, err := SumOfSquaredErrors(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
+	hm.errorM = &ErrorMeasurement{
+		errorType: errTyp,
+		value:     val,
 	}
-
-	rmse, _, err := RootMeanSquaredError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	mape, _, err := MeanAbsolutePercentageError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	hm.sse = sse
-	hm.mae = mae
-	hm.rmse = rmse
-	hm.mape = mape
 
 	return hm, nil
 }
@@ -274,13 +288,11 @@ func (hm *HwModel) Summary() {
 	seasonalComponents := dataframe.NewDataFrame(initSeasonalComps, seasonalComps)
 	fmt.Println(seasonalComponents)
 
-	mae := dataframe.NewSeriesFloat64("MAE", nil, hm.mae)
-	sse := dataframe.NewSeriesFloat64("SSE", nil, hm.sse)
-	rmse := dataframe.NewSeriesFloat64("RMSE", nil, hm.rmse)
-	mape := dataframe.NewSeriesFloat64("MAPE", nil, hm.mape)
-	accuracyErrors := dataframe.NewDataFrame(sse, mae, rmse, mape)
+	errTyp := hm.errorM.Type()
+	errVal := hm.errorM.Value()
+	errorM := dataframe.NewSeriesFloat64(errTyp, nil, errVal)
 
-	fmt.Println(accuracyErrors.Table())
+	fmt.Println(errorM.Table())
 
 	fmt.Println(hm.testData.Table())
 	fmt.Println(hm.fcastData.Table())

@@ -25,7 +25,12 @@ func TestSes(t *testing.T) {
 
 	fModel := SimpleExponentialSmoothing(data)
 
-	fModelFit, err := fModel.Fit(ctx, alpha, dataframe.Range{End: &[]int{5}[0]})
+	opt := FitOptions{
+		Alpha:          alpha,
+		TrainDataRange: &dataframe.Range{End: &[]int{5}[0]},
+	}
+
+	fModelFit, err := fModel.Fit(ctx, opt)
 	if err != nil {
 		t.Errorf("unexpected error: %s\n", err)
 	}
@@ -64,7 +69,15 @@ func TestHw(t *testing.T) {
 	beta := 0.03
 	gamma := 0.73
 
-	fModelFit, err := fModel.Fit(ctx, alpha, beta, gamma, period, dataframe.Range{End: &[]int{71}[0]})
+	opts := FitOptions{
+		Alpha:          alpha,
+		Beta:           beta,
+		Gamma:          gamma,
+		Period:         period,
+		TrainDataRange: &dataframe.Range{End: &[]int{71}[0]},
+	}
+
+	fModelFit, err := fModel.Fit(ctx, opts)
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}

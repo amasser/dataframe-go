@@ -21,10 +21,7 @@ type SesModel struct {
 	originValue    float64
 	smoothingLevel float64
 	alpha          float64
-	mae            float64
-	sse            float64
-	rmse           float64
-	mape           float64
+	errorM         *ErrorMeasurement
 }
 
 // SimpleExponentialSmoothing Function receives a series data of type dataframe.Seriesfloat64
@@ -39,10 +36,7 @@ func SimpleExponentialSmoothing(s *dataframe.SeriesFloat64) *SesModel {
 		fcastData:      &dataframe.SeriesFloat64{},
 		initialLevel:   0.0,
 		smoothingLevel: 0.0,
-		mae:            0.0,
-		sse:            0.0,
-		rmse:           0.0,
-		mape:           0.0,
+		errorM:         &ErrorMeasurement{},
 	}
 
 	model.data = s
@@ -52,18 +46,28 @@ func SimpleExponentialSmoothing(s *dataframe.SeriesFloat64) *SesModel {
 // Fit Method performs the splitting and trainging of the SesModel based on the Exponential Smoothing algorithm.
 // It returns a trained SesModel ready to carry out future predictions.
 // The argument α must be between [0,1].
-func (sm *SesModel) Fit(ctx context.Context, α float64, r ...dataframe.Range) (*SesModel, error) {
+func (sm *SesModel) Fit(ctx context.Context, o FitOptions) (*SesModel, error) {
 
-	if len(r) == 0 {
-		r = append(r, dataframe.Range{})
+	var (
+		α      float64
+		r      *dataframe.Range
+		errTyp ErrorType
+	)
+
+	α = o.Alpha
+
+	if o.TrainDataRange != nil {
+		r = o.TrainDataRange
 	}
+
+	errTyp = o.ErrMtype
 
 	count := len(sm.data.Values)
 	if count == 0 {
 		return nil, ErrNoRows
 	}
 
-	start, end, err := r[0].Limits(count)
+	start, end, err := r.Limits(count)
 	if err != nil {
 		return nil, err
 	}
@@ -134,30 +138,36 @@ func (sm *SesModel) Fit(ctx context.Context, α float64, r ...dataframe.Range) (
 
 	opts := &ErrorOptions{}
 
-	mae, _, err := MeanAbsoluteError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
+	var val float64
+
+	if errTyp == MAE {
+		val, _, err = MeanAbsoluteError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == SSE {
+		val, _, err = SumOfSquaredErrors(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == RMSE {
+		val, _, err = RootMeanSquaredError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else if errTyp == MAPE {
+		val, _, err = MeanAbsolutePercentageError(ctx, testSeries, fcastSeries, opts)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, errors.New("Unknown error type")
 	}
 
-	sse, _, err := SumOfSquaredErrors(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
+	sm.errorM = &ErrorMeasurement{
+		errorType: errTyp,
+		value:     val,
 	}
-
-	rmse, _, err := RootMeanSquaredError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	mape, _, err := MeanAbsolutePercentageError(ctx, testSeries, fcastSeries, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	sm.sse = sse
-	sm.mae = mae
-	sm.rmse = rmse
-	sm.mape = mape
 
 	return sm, nil
 }
@@ -201,13 +211,11 @@ func (sm *SesModel) Summary() {
 	info := dataframe.NewDataFrame(alpha, initLevel, st)
 	fmt.Println(info.Table())
 
-	mae := dataframe.NewSeriesFloat64("MAE", nil, sm.mae)
-	sse := dataframe.NewSeriesFloat64("SSE", nil, sm.sse)
-	rmse := dataframe.NewSeriesFloat64("RMSE", nil, sm.rmse)
-	mape := dataframe.NewSeriesFloat64("MAPE", nil, sm.mape)
-	accuracyErrors := dataframe.NewDataFrame(sse, mae, rmse, mape)
+	errTyp := sm.errorM.Type()
+	errVal := sm.errorM.Value()
+	errorM := dataframe.NewSeriesFloat64(errTyp, nil, errVal)
 
-	fmt.Println(accuracyErrors.Table())
+	fmt.Println(errorM.Table())
 
 	fmt.Println(sm.testData.Table())
 	fmt.Println(sm.fcastData.Table())

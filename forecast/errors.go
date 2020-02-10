@@ -18,6 +18,50 @@ func isInvalidFloat64(val float64) bool {
 	return false
 }
 
+// ErrorType Enum is used to specify
+// error type selection to use in Model Fit
+type ErrorType int
+
+const (
+	// RMSE stands for Root Mean Squared Error type
+	RMSE ErrorType = 0
+	// SSE stands for Sum Of Squared Error type
+	SSE ErrorType = 1
+	// MAE stands for Mean Absolute Error type
+	MAE ErrorType = 2
+	// MAPE Mean Absolute percentage Error type
+	MAPE ErrorType = 3
+)
+
+// ErrorMeasurement struct contains data
+// about selected error type in Model Fit
+type ErrorMeasurement struct {
+	errorType ErrorType
+	value     float64
+}
+
+// Type method returns the error measurement type in String format
+func (em *ErrorMeasurement) Type() string {
+	var out string
+
+	if em.errorType == MAE {
+		out = "Mean Absolute Error"
+	} else if em.errorType == SSE {
+		out = "Sum Of Squared Error"
+	} else if em.errorType == RMSE {
+		out = "Root Mean Squared Error"
+	} else if em.errorType == MAPE {
+		out = "Mean Absolute Percentage Error"
+	}
+
+	return out
+}
+
+// Value method returns the float64 error measurement Value
+func (em *ErrorMeasurement) Value() float64 {
+	return em.value
+}
+
 // ErrorOptions is used to modify the behavior of the "Error" calculation functions.
 type ErrorOptions struct {
 
