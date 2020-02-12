@@ -26,7 +26,51 @@ type SesModel struct {
 
 // SimpleExponentialSmoothing Function receives a series data of type dataframe.Seriesfloat64
 // It returns a SesModel from which Fit and Predict method can be carried out.
-func SimpleExponentialSmoothing(s *dataframe.SeriesFloat64) *SesModel {
+func SimpleExponentialSmoothing(s interface{}) *SesModel {
+	var (
+		data *dataframe.SeriesFloat64
+	)
+
+	switch d := s.(type) {
+	case *dataframe.SeriesFloat64:
+		data = d
+
+	case *dataframe.DataFrame:
+		// validate that
+		// - DataFrame has exactly two columns
+		// - first column is SeriesTime
+		// - second column is SeriesFloat64
+		if len(d.Series) != 2 {
+
+			panic("dataframe passed in must have exactly two series/columns.")
+		} else {
+			if d.Series[0].Type() != "time" {
+				panic("first column/series must be a SeriesTime")
+			} else { // get the current time interval from the seriesTime
+				if ts, ok := d.Series[0].(*dataframe.SeriesTime); ok {
+					_ = ts
+					// utime.NextTime()
+					// TODO: Use Utime pkg to Get the time interval from a SeriesTime
+				} else {
+					panic("column 0 not convertible to SeriesTime")
+				}
+			}
+
+			if d.Series[1].Type() != "float64" {
+				panic("second column/series must be a SeriesFloat64")
+			} else {
+				val := d.Series[1].Copy()
+				if v, ok := val.(*dataframe.SeriesFloat64); ok {
+					data = v
+				} else {
+					panic("column 1 not convertible to SeriesFloat64")
+				}
+			}
+		}
+
+	default:
+		panic("unknown data format passed in. make sure you pass in a SeriesFloat64 or a forecast standard two(2) column dataframe.")
+	}
 
 	model := &SesModel{
 		alpha:          0.0,
@@ -39,7 +83,7 @@ func SimpleExponentialSmoothing(s *dataframe.SeriesFloat64) *SesModel {
 		errorM:         &ErrorMeasurement{},
 	}
 
-	model.data = s
+	model.data = data
 	return model
 }
 

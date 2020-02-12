@@ -6,10 +6,38 @@ import (
 
 	// "math/rand"
 	"testing"
-	// "time"
+	"time"
 
 	dataframe "github.com/rocketlaunchr/dataframe-go"
+	utime "github.com/rocketlaunchr/dataframe-go/utils/utime"
 )
+
+func TestReadDataFromDF(t *testing.T) {
+
+	ctx := context.Background()
+
+	size := 10
+	opts := utime.NewSeriesTimeOptions{
+		Size: &size,
+	}
+
+	timeRec, err := utime.NewSeriesTime(ctx, "Time Received", "2W1D", time.Now(), false, opts)
+	if err != nil {
+		t.Errorf("error encountered: %s", err)
+	}
+
+	qty := dataframe.NewSeriesFloat64("unit increase", nil, 1.05, 2.5, 3, 4, 5, 6, 7.25, 8, 9.36, 10.04)
+
+	dataF := dataframe.NewDataFrame(timeRec, qty)
+
+	sesModel := SimpleExponentialSmoothing(dataF)
+	// spew.Dump(sesModel)
+	_ = sesModel
+
+	hwModel := HoltWinters(dataF)
+	// spew.Dump(hwModel)
+	_ = hwModel
+}
 
 func TestSes(t *testing.T) {
 	ctx := context.Background()
