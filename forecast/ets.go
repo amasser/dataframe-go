@@ -22,6 +22,7 @@ type SesModel struct {
 	smoothingLevel float64
 	alpha          float64
 	errorM         *ErrorMeasurement
+	inputIsDf      bool
 }
 
 // SimpleExponentialSmoothing Function receives a series data of type dataframe.Seriesfloat64
@@ -29,6 +30,7 @@ type SesModel struct {
 func SimpleExponentialSmoothing(s interface{}) *SesModel {
 	var (
 		data *dataframe.SeriesFloat64
+		isDf bool
 	)
 
 	switch d := s.(type) {
@@ -36,6 +38,7 @@ func SimpleExponentialSmoothing(s interface{}) *SesModel {
 		data = d
 
 	case *dataframe.DataFrame:
+		isDf = true
 		// validate that
 		// - DataFrame has exactly two columns
 		// - first column is SeriesTime
@@ -81,6 +84,7 @@ func SimpleExponentialSmoothing(s interface{}) *SesModel {
 		initialLevel:   0.0,
 		smoothingLevel: 0.0,
 		errorM:         &ErrorMeasurement{},
+		inputIsDf:      isDf,
 	}
 
 	model.data = data
@@ -218,7 +222,8 @@ func (sm *SesModel) Fit(ctx context.Context, o FitOptions) (*SesModel, error) {
 
 // Predict method is used to run future predictions for Ses
 // Using Ses Bootstrapping method
-func (sm *SesModel) Predict(ctx context.Context, m int) (*dataframe.SeriesFloat64, error) {
+// It returns an interface{} result that is either dataframe.SeriesFloat64 or dataframe.Dataframe format
+func (sm *SesModel) Predict(ctx context.Context, m int) (interface{}, error) {
 	if m <= 0 {
 		return nil, errors.New("m must be greater than 0")
 	}
@@ -240,6 +245,12 @@ func (sm *SesModel) Predict(ctx context.Context, m int) (*dataframe.SeriesFloat6
 
 	fdf := dataframe.NewSeriesFloat64("Prediction", nil)
 	fdf.Values = forecast
+
+	if sm.inputIsDf {
+		// TODO: generate SeriesTime to continue from where it stopped in data input
+		// this is why getting time interval is required
+		// combine fdf and generated time series into a dataframe and return
+	}
 
 	return fdf, nil
 }

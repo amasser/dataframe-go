@@ -28,6 +28,7 @@ type HwModel struct {
 	beta                 float64
 	gamma                float64
 	errorM               *ErrorMeasurement
+	inputIsDf            bool
 }
 
 // HoltWinters Function receives a series data of type dataframe.Seriesfloat64
@@ -36,6 +37,7 @@ func HoltWinters(s interface{}) *HwModel {
 
 	var (
 		data *dataframe.SeriesFloat64
+		isDf bool
 	)
 
 	switch d := s.(type) {
@@ -43,6 +45,7 @@ func HoltWinters(s interface{}) *HwModel {
 		data = d
 
 	case *dataframe.DataFrame:
+		isDf = true
 		// validate that
 		// - DataFrame has exactly two columns
 		// - first column is SeriesTime
@@ -95,6 +98,7 @@ func HoltWinters(s interface{}) *HwModel {
 		beta:                 0.0,
 		gamma:                0.0,
 		errorM:               &ErrorMeasurement{},
+		inputIsDf:            isDf,
 	}
 
 	model.data = data
@@ -268,8 +272,8 @@ func (hm *HwModel) Fit(ctx context.Context, o FitOptions) (*HwModel, error) {
 }
 
 // Predict method runs future predictions for HoltWinter Model
-// It returns result in dataframe.SeriesFloat64 format
-func (hm *HwModel) Predict(ctx context.Context, h int) (*dataframe.SeriesFloat64, error) {
+// It returns an interface{} result that is either dataframe.SeriesFloat64 or dataframe.Dataframe format
+func (hm *HwModel) Predict(ctx context.Context, h int) (interface{}, error) {
 
 	// Validation
 	if h <= 0 {
@@ -300,6 +304,12 @@ func (hm *HwModel) Predict(ctx context.Context, h int) (*dataframe.SeriesFloat64
 
 	fdf := dataframe.NewSeriesFloat64("Prediction", nil)
 	fdf.Values = forecast
+
+	if hm.inputIsDf {
+		// TODO: generate SeriesTime to continue from where it stopped in data input
+		// this is why getting time interval is required
+		// combine fdf and generated time series into a dataframe and return
+	}
 
 	return fdf, nil
 }

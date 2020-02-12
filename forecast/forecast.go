@@ -36,12 +36,11 @@ type FitOptions struct {
 type Model interface {
 	// Fit Method performs the splitting and training of the Model Interface based on the Forecast algorithm Implemented.
 	// It returns a trained Model ready to carry out future forecasts.
-	// The argument α must be between [0,1]. Recent values receive more weight when α is closer to 1.
 	Fit(context.Context, *FitOptions) (Model, error)
 
-	// Predict method is used to run future predictions for Ses
-	// Using Bootstrapping method
-	Predict(context.Context, int) (*dataframe.SeriesFloat64, error)
+	// Predict method is used to run future predictions for the Model algorithm
+	// It returns an interface{} result that is either dataframe.SeriesFloat64 or dataframe.Dataframe format
+	Predict(context.Context, int) (interface{}, error)
 
 	// Summary method is used to Print out Data Summary
 	// From the Trained Model
