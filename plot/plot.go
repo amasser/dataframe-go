@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/zserge/lorca"
@@ -47,7 +48,8 @@ type Plot struct {
 	title    string
 	tempfile *os.File
 
-	ui lorca.UI
+	lock sync.Mutex
+	ui   lorca.UI
 }
 
 // Open creates a new plot window.
@@ -97,24 +99,50 @@ func Open(title string, width, height int) (*Plot, error) {
 		return nil, err
 	}
 
-	ui, err := lorca.New("data:text/html,"+url.PathEscape(builder.String()), "", width, height)
-	if err != nil {
-		return nil, err
-	}
-
 	plot := &Plot{
-		ui:       ui,
+		// ui:       ui,
 		title:    title,
 		tempfile: tmpfile,
 		Closed:   make(chan struct{}, 1),
 	}
 
+	plot.lock.Lock()
 	go func() {
-		plot.Closed <- <-ui.Done() // triggered when window is destroyed
-		ui.Close()
+		ui, err := lorca.New("data:text/html,"+url.PathEscape(builder.String()), "", width, height)
+		if err != nil {
+			return
+		}
+
+		plot.ui = ui
+		plot.lock.Unlock()
+
+		go func() {
+			plot.Closed <- <-ui.Done() // triggered when window is destroyed
+			ui.Close()
+		}()
+
 	}()
 
 	return plot, nil
+
+	// ui, err := lorca.New("data:text/html,"+url.PathEscape(builder.String()), "", width, height)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// plot := &Plot{
+	// 	ui:       ui,
+	// 	title:    title,
+	// 	tempfile: tmpfile,
+	// 	Closed:   make(chan struct{}, 1),
+	// }
+
+	// go func() {
+	// 	plot.Closed <- <-ui.Done() // triggered when window is destroyed
+	// 	ui.Close()
+	// }()
+
+	// return plot, nil
 }
 
 // Close closes the plot window.
@@ -156,9 +184,12 @@ func (p *Plot) Close() error {
 // See: https://godoc.org/github.com/wcharczuk/go-chart
 func (p *Plot) Write(d []byte) (int, error) {
 
-	if p.ui == nil {
-		return 0, ErrClosed
-	}
+	// if p.ui == nil {
+	// 	return 0, ErrClosed
+	// }
+
+	// p.lock.Lock()
+	// defer p.lock.Unlock()
 
 	return p.tempfile.Write(d)
 }
@@ -181,9 +212,12 @@ const (
 // Display will display the plot.
 func (p *Plot) Display(mime ...MIME) error {
 
-	if p.ui == nil {
-		return ErrClosed
-	}
+	// if p.ui == nil {
+	// 	return ErrClosed
+	// }
+
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
 	img, err := ioutil.ReadFile(p.tempfile.Name())
 	if err != nil {
