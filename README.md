@@ -16,7 +16,7 @@ It is recommended your package manager locks to a commit id instead of the maste
 # Features
 
 1. Importing from CSV, JSONL, MySQL & PostgreSQL
-2. Exporting to CSV, JSONL, Excel, MySQL & PostgreSQL
+2. Exporting to CSV, JSONL, Excel, Parquet, MySQL & PostgreSQL
 3. Developer Friendly
 4. Flexible - Create custom Series (custom data types)
 5. Performant
@@ -25,6 +25,7 @@ It is recommended your package manager locks to a commit id instead of the maste
 8. Fake data generation
 9. Interpolation (ForwardFill, BackwardFill, Linear, Spline, Lagrange)
 10. Plotting (cross-platform)
+11. Math functions
 
 # DataFrames
 
@@ -218,6 +219,26 @@ Output:
 <img src="https://github.com/rocketlaunchr/dataframe-go/raw/master/plot.png" alt="plot" />
 </p>
 
+## Math Functions
+
+```go
+import "github.com/rocketlaunchr/dataframe-go/math/funcs"
+
+res := 24
+sx := dataframe.NewSeriesFloat64("x", nil, dataframe.Float64Range(1, float64(res), 1))
+sy := dataframe.NewSeriesFloat64("y", &dataframe.SeriesInit{Size: res})
+df := dataframe.NewDataFrame(sx, sy)
+
+fn := funcs.RegularFunc("sin((2*𝜋*x)/24)")
+funcs.PiecewiseFunc(ctx, df, fn, 1)
+```
+
+Output:
+
+<p align="center">
+<img src="https://github.com/rocketlaunchr/dataframe-go/raw/master/sine.png" alt="sine wave" />
+</p>
+
 ## Importing Data
 
 The `imports` sub-package has support for importing csv, jsonl and directly from a SQL database. The `DictateDataType` option can be set to specify the true underlying data type. Alternatively, `InferDataTypes` option can be set.
@@ -257,7 +278,7 @@ OUTPUT:
 
 ## Exporting Data
 
-The `exports` sub-package has support for exporting to csv, jsonl, Excel and directly to a SQL database.
+The `exports` sub-package has support for exporting to csv, jsonl, parquet, Excel and directly to a SQL database.
 
 
 ## Optimizations
